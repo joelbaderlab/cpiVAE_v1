@@ -118,6 +118,14 @@ class pQTLData:
     effect_size_analysis: Dict[str, any] = None
     performance_metrics: Dict[str, float] = None
 
+    # Protein data for imputation R^2 calculation
+    truth_proteins: pd.DataFrame = None
+    method1_proteins: pd.DataFrame = None
+    method2_proteins: pd.DataFrame = None
+    method3_proteins: pd.DataFrame = None
+    method4_proteins: pd.DataFrame = None
+    imputation_r2: Dict[str, Dict[str, float]] = None  # R^2 values per protein per method
+
 class CispQTLAnalyzer:
     """Comprehensive cis-pQTL analysis framework.
     
@@ -263,7 +271,100 @@ class CispQTLAnalyzer:
         
         data.significant_hits = significant_hits
         return data
-    
+
+    def load_protein_data(self, data: pQTLData, protein_file_paths: Dict[str, str]) -> pQTLData:
+        """Load protein data from CSV files for imputation R^2 calculation.
+
+        Args:
+            data: pQTLData object with pQTL analysis data
+            protein_file_paths: Dictionary mapping dataset names to protein CSV file paths
+
+        Returns:
+            Updated pQTLData object with protein data loaded
+        """
+        print("Loading protein data files...")
+
+        # Load truth protein data
+        if protein_file_paths['truth']:
+            truth_proteins = pd.read_csv(protein_file_paths['truth'], index_col=0)
+            data.truth_proteins = truth_proteins
+            print(f"  Truth proteins: {truth_proteins.shape[0]} samples, {truth_proteins.shape[1]} proteins")
+
+        # Load imputed protein data for each method
+        method_protein_attrs = [
+            ('method1', 'method1_proteins'),
+            ('method2', 'method2_proteins'),
+            ('method3', 'method3_proteins'),
+            ('method4', 'method4_proteins')
+        ]
+
+        for file_key, attr_name in method_protein_attrs:
+            if protein_file_paths[file_key]:
+                method_proteins = pd.read_csv(protein_file_paths[file_key], index_col=0)
+                setattr(data, attr_name, method_proteins)
+                print(f"  {file_key} proteins: {method_proteins.shape[0]} samples, {method_proteins.shape[1]} proteins")
+
+        return data
+
+    def calculate_imputation_r2(self, data: pQTLData) -> pQTLData:
+        """Calculate R^2 between truth and imputed protein values.
+
+        Args:
+            data: pQTLData object with protein data loaded
+
+        Returns:
+            Updated pQTLData object with imputation R^2 values
+        """
+        from sklearn.metrics import r2_score
+
+        print("Calculating imputation R^2 values...")
+
+        if data.truth_proteins is None:
+            print("  WARNING: No truth protein data loaded, skipping R^2 calculation")
+            return data
+
+        imputation_r2 = {}
+        truth_proteins = data.truth_proteins
+
+        # Ensure all dataframes have the same index order
+        common_samples = truth_proteins.index
+
+        # Calculate R^2 for each method
+        methods_data = [
+            ('method1', data.method1_proteins),
+            ('method2', data.method2_proteins),
+            ('method3', data.method3_proteins),
+            ('method4', data.method4_proteins)
+        ]
+
+        for method_name, method_proteins in methods_data:
+            if method_proteins is not None:
+                # Get common samples
+                common_samples_method = common_samples.intersection(method_proteins.index)
+
+                # Get common proteins
+                common_proteins = truth_proteins.columns.intersection(method_proteins.columns)
+
+                print(f"  {method_name}: {len(common_samples_method)} common samples, {len(common_proteins)} common proteins")
+
+                # Calculate R^2 for each protein
+                r2_values = {}
+                for protein in common_proteins:
+                    truth_values = truth_proteins.loc[common_samples_method, protein]
+                    imputed_values = method_proteins.loc[common_samples_method, protein]
+
+                    # Remove NaN values
+                    mask = ~(truth_values.isna() | imputed_values.isna())
+                    if mask.sum() > 1:  # Need at least 2 samples for R^2
+                        r2 = r2_score(truth_values[mask], imputed_values[mask])
+                        r2_values[protein] = r2
+
+                imputation_r2[method_name] = r2_values
+                print(f"    Calculated R^2 for {len(r2_values)} proteins")
+
+        data.imputation_r2 = imputation_r2
+        return data
+
     def filter_by_maf(self, data: pQTLData) -> pQTLData:
         """Filter associations based on Minor Allele Frequency threshold.
         
@@ -1788,20 +1889,24 @@ class CispQTLAnalyzer:
             
             # Panel 3: Chi-square comparison (using MAF-filtered data like p-value panel)
             ax3 = fig.add_subplot(gs[2, i])
-            
+
             # For chi-square, use MAF-filtered data (same as p-value panel in row 1)
             if method in data.maf_filtered and 'truth' in data.maf_filtered:
                 # Get MAF-filtered data with slope and slope_se
                 truth_chi2_data = data.maf_filtered['truth'].copy()
                 method_chi2_data = data.maf_filtered[method].copy()
-                
+
                 # Filter for valid slope_se values and remove invalid p-values
-                truth_chi2_data = truth_chi2_data[(truth_chi2_data['slope_se'] > 0) & 
+                truth_chi2_data = truth_chi2_data[(truth_chi2_data['slope_se'] > 0) &
                                                    truth_chi2_data['slope_se'].notna() &
                                                    (truth_chi2_data['pval_nominal'] < 1)]
-                method_chi2_data = method_chi2_data[(method_chi2_data['slope_se'] > 0) & 
+                method_chi2_data = method_chi2_data[(method_chi2_data['slope_se'] > 0) &
                                                      method_chi2_data['slope_se'].notna() &
                                                      (method_chi2_data['pval_nominal'] < 1)]
+
+                # Additional filtering: only include associations that are significant in truth
+                truth_sig_mask = truth_chi2_data['pval_nominal'] < data.significance_threshold
+                truth_chi2_data = truth_chi2_data[truth_sig_mask]
                 
                 if len(truth_chi2_data) > 0 and len(method_chi2_data) > 0:
                     # Calculate chi-square values
@@ -1865,7 +1970,7 @@ class CispQTLAnalyzer:
                             # Labels and title
                             ax3.set_xlabel('Truth Chi-square')
                             ax3.set_ylabel(f'{method_name} Chi-square')
-                            ax3.set_title(f'{method_name}\nChi-square Comparison (MAF-filtered)')
+                            ax3.set_title(f'{method_name}\nChi-square Comparison (MAF & Truth p<{data.significance_threshold})')
 
                             # Add statistics text
                             stats_text = f'n = {len(truth_chi2_clean)}\n'
@@ -2115,7 +2220,173 @@ class CispQTLAnalyzer:
         print(f"  Total track files created: {len(track_files_created)}")
         
         return track_files_created
-    
+
+    def plot_imputation_vs_chi2_ratio(self, data: pQTLData) -> plt.Figure:
+        """Create scatter plots of imputation R² vs Chi-square ratio for each method.
+
+        Creates a figure with one panel per method showing the relationship between
+        imputation performance (R²) and the ratio of chi-square values (imputed/truth).
+        Applies MAF filtering and truth p-value filtering as in figure_3.
+
+        Args:
+            data: pQTLData object containing analysis results
+
+        Returns:
+            matplotlib Figure object with scatter plots
+        """
+        print("Creating imputation R² vs Chi-square ratio plots...")
+
+        # Check if we have imputation R² data
+        if not data.imputation_r2:
+            print("  WARNING: No imputation R² data available, skipping figure_4")
+            return None
+
+        # Check if we have MAF-filtered data
+        if not data.maf_filtered:
+            print("  WARNING: No MAF-filtered data available, skipping figure_4")
+            return None
+
+        # Prepare method data
+        methods = ['method1', 'method2', 'method3', 'method4']
+        method_names = data.method_names
+
+        # Create figure with 1 row x 4 columns
+        fig = plt.figure(figsize=(20, 5))
+        gs = GridSpec(1, 4, figure=fig, hspace=0.3, wspace=0.25)
+
+        for i, (method, method_name) in enumerate(zip(methods, method_names)):
+            print(f"  Processing {method_name}...")
+
+            ax = fig.add_subplot(gs[0, i])
+
+            # Check if we have imputation R² for this method
+            if method not in data.imputation_r2:
+                ax.text(0.5, 0.5, f'No imputation R² data\nfor {method_name}',
+                       ha='center', va='center', transform=ax.transAxes)
+                continue
+
+            # Get MAF-filtered data
+            if method not in data.maf_filtered or 'truth' not in data.maf_filtered:
+                ax.text(0.5, 0.5, f'No MAF-filtered data\nfor {method_name}',
+                       ha='center', va='center', transform=ax.transAxes)
+                continue
+
+            # Get MAF-filtered data with slope and slope_se
+            truth_data = data.maf_filtered['truth'].copy()
+            method_data = data.maf_filtered[method].copy()
+
+            # Filter for valid slope_se values and remove invalid p-values
+            truth_data = truth_data[(truth_data['slope_se'] > 0) &
+                                   truth_data['slope_se'].notna() &
+                                   (truth_data['pval_nominal'] < 1)]
+            method_data = method_data[(method_data['slope_se'] > 0) &
+                                     method_data['slope_se'].notna() &
+                                     (method_data['pval_nominal'] < 1)]
+
+            # Filter for associations significant in truth (same as figure_3)
+            truth_sig_mask = truth_data['pval_nominal'] < data.significance_threshold
+            truth_data_sig = truth_data[truth_sig_mask].copy()
+
+            if len(truth_data_sig) == 0:
+                ax.text(0.5, 0.5, f'No significant associations in truth\nfor {method_name}',
+                       ha='center', va='center', transform=ax.transAxes)
+                continue
+
+            # Calculate chi-square values
+            truth_data_sig['chi2'] = (truth_data_sig['slope'] / truth_data_sig['slope_se']) ** 2
+            method_data['chi2'] = (method_data['slope'] / method_data['slope_se']) ** 2
+
+            # Add assoc_id for merging
+            truth_data_sig['assoc_id'] = truth_data_sig['phenotype_id'] + ':' + truth_data_sig['variant_id']
+            method_data['assoc_id'] = method_data['phenotype_id'] + ':' + method_data['variant_id']
+
+            # Merge to get common associations
+            merged = pd.merge(
+                truth_data_sig[['assoc_id', 'chi2', 'phenotype_id']],
+                method_data[['assoc_id', 'chi2']],
+                on='assoc_id',
+                suffixes=('_truth', '_method')
+            )
+
+            if len(merged) == 0:
+                ax.text(0.5, 0.5, f'No common associations\nfor {method_name}',
+                       ha='center', va='center', transform=ax.transAxes)
+                continue
+
+            # Calculate chi-square ratio
+            merged['chi2_ratio'] = merged['chi2_method'] / merged['chi2_truth']
+
+            # Get R² values for these proteins
+            r2_dict = data.imputation_r2[method]
+            merged['r2'] = merged['phenotype_id'].map(r2_dict)
+
+            # Remove rows without R² values
+            merged = merged.dropna(subset=['r2'])
+
+            # Remove inf and nan values in chi2_ratio
+            valid_mask = np.isfinite(merged['chi2_ratio'].values)
+            merged = merged[valid_mask]
+
+            if len(merged) == 0:
+                ax.text(0.5, 0.5, f'No valid data points\nfor {method_name}',
+                       ha='center', va='center', transform=ax.transAxes)
+                continue
+
+            # Create scatter plot
+            x = merged['r2'].values
+            y = merged['chi2_ratio'].values
+
+            # Always use scatter plot regardless of number of points
+            ax.scatter(x, y, alpha=0.6, s=20, color='steelblue', edgecolors='none')
+
+            # Add reference lines
+            ax.axhline(y=1, color='k', linestyle='--', alpha=0.5, linewidth=1,
+                      label='Chi² ratio = 1')
+            ax.axvline(x=0, color='gray', linestyle=':', alpha=0.3, linewidth=1)
+
+            # Add regression line if enough points
+            if len(x) > 3:
+                z = np.polyfit(x, y, 1)
+                p = np.poly1d(z)
+                x_line = np.linspace(np.min(x), np.max(x), 100)
+                ax.plot(x_line, p(x_line), 'r-', alpha=0.8, linewidth=1.5,
+                       label=f'y = {z[0]:.2f}x + {z[1]:.2f}')
+
+            # Calculate statistics
+            pearson_r, _ = pearsonr(x, y)
+            spearman_r, _ = spearmanr(x, y)
+            median_ratio = np.median(y)
+
+            # Labels and title
+            ax.set_xlabel('Imputation R²')
+            ax.set_ylabel('Chi² Ratio (Imputed/Truth)')
+            ax.set_title(f'{method_name}\n(MAF & Truth p<{data.significance_threshold} filtered)')
+
+            # Add statistics text
+            stats_text = f'n = {len(x)}\n'
+            stats_text += f'Pearson r = {pearson_r:.3f}\n'
+            stats_text += f'Spearman ρ = {spearman_r:.3f}\n'
+            stats_text += f'Median ratio = {median_ratio:.3f}'
+
+            ax.text(0.05, 0.95, stats_text,
+                   transform=ax.transAxes, fontsize=9, verticalalignment='top',
+                   bbox=dict(boxstyle='round', facecolor='white', alpha=0.9))
+
+            # Set y-axis limits if needed to avoid extreme outliers
+            ylim_lower = np.percentile(y, 1)
+            ylim_upper = np.percentile(y, 99)
+            if ylim_upper > 10:
+                ax.set_ylim(ylim_lower, min(ylim_upper, 20))
+
+            ax.legend(loc='lower right', fontsize=9)
+            ax.grid(True, alpha=0.3)
+
+        # Add main title
+        fig.suptitle('Imputation Performance (R²) vs Chi-square Ratio Analysis',
+                    fontsize=16, fontweight='bold', y=1.02)
+
+        return fig
+
     def save_figure(self, fig, name: str, **kwargs):
         """Save figure in both PDF and PNG formats.
         
@@ -2433,16 +2704,18 @@ class CispQTLAnalyzer:
         
         print(f"  Summary report saved to {report_path}")
     
-    def run_complete_analysis(self, file_paths: Dict[str, str], method_names: List[str]):
+    def run_complete_analysis(self, file_paths: Dict[str, str], method_names: List[str],
+                             protein_file_paths: Dict[str, str] = None):
         """Execute the complete cis-pQTL analysis pipeline.
-        
+
         Runs the full analysis workflow including data loading, significance filtering,
         overlap analysis, effect size analysis, performance calculations, figure
         generation, and report creation.
-        
+
         Args:
             file_paths: Dictionary mapping dataset names to file paths
             method_names: List of method display names
+            protein_file_paths: Optional dictionary mapping dataset names to protein CSV file paths
             
         Returns:
             pQTLData object with complete analysis results
@@ -2452,7 +2725,12 @@ class CispQTLAnalyzer:
         
         # Load and validate data
         data = self.load_and_validate_data(file_paths, method_names)
-        
+
+        # Load protein data if provided
+        if protein_file_paths:
+            data = self.load_protein_data(data, protein_file_paths)
+            data = self.calculate_imputation_r2(data)
+
         # Filter by MAF threshold
         data = self.filter_by_maf(data)
         
@@ -2495,7 +2773,14 @@ class CispQTLAnalyzer:
         if fig3:
             self.save_figure(fig3, "figure_3_pval_slope_comparison")
             plt.close(fig3)
-        
+
+        # Generate imputation R² vs Chi-square ratio plot if protein data is available
+        if data.imputation_r2:
+            fig4 = self.plot_imputation_vs_chi2_ratio(data)
+            if fig4:
+                self.save_figure(fig4, "figure_4_imputation_vs_chi2_ratio")
+                plt.close(fig4)
+
         # Generate UCSC Genome Browser tracks
         self.generate_ucsc_browser_tracks(data)
         
@@ -2575,7 +2860,19 @@ Output:
     parser.add_argument('--maf_threshold', type=float, default=0.01,
                        help='Minor Allele Frequency threshold for filtering variants (default: 0.01). ' +
                             'Filters variants with AF < maf_threshold or AF > (1 - maf_threshold)')
-    
+
+    # Protein data arguments for imputation R^2 calculation
+    parser.add_argument('--truth_a',
+                       help='Path to truth protein values CSV file')
+    parser.add_argument('--imp_a_m1',
+                       help='Path to method 1 imputed protein values CSV file')
+    parser.add_argument('--imp_a_m2',
+                       help='Path to method 2 imputed protein values CSV file')
+    parser.add_argument('--imp_a_m3',
+                       help='Path to method 3 imputed protein values CSV file')
+    parser.add_argument('--imp_a_m4',
+                       help='Path to method 4 imputed protein values CSV file')
+
     args = parser.parse_args()
     
     # Validate input files exist
@@ -2609,6 +2906,36 @@ Output:
     print(f"MAF threshold: {args.maf_threshold} (filtering AF < {args.maf_threshold} or AF > {1 - args.maf_threshold})")
     print("=" * 50)
     
+    # Check and validate protein data files if provided
+    protein_file_paths = None
+    if args.truth_a:
+        protein_file_paths = {
+            'truth': args.truth_a,
+            'method1': args.imp_a_m1,
+            'method2': args.imp_a_m2,
+            'method3': args.imp_a_m3,
+            'method4': args.imp_a_m4
+        }
+
+        # Validate protein files exist if any are provided
+        missing_protein_files = []
+        for name, path in protein_file_paths.items():
+            if path and not os.path.exists(path):
+                missing_protein_files.append(f"{name}: {path}")
+
+        if missing_protein_files:
+            print("Error: Protein data files not found:")
+            for file_info in missing_protein_files:
+                print(f"  {file_info}")
+            sys.exit(1)
+
+        print("\nProtein data files for imputation R^2:")
+        print(f"  Truth: {args.truth_a}")
+        print(f"  Method 1: {args.imp_a_m1}")
+        print(f"  Method 2: {args.imp_a_m2}")
+        print(f"  Method 3: {args.imp_a_m3}")
+        print(f"  Method 4: {args.imp_a_m4}")
+
     # Initialize analyzer
     analyzer = CispQTLAnalyzer(
         output_dir=args.output_dir,
@@ -2616,10 +2943,10 @@ Output:
         truth_threshold=args.truth_threshold,
         maf_threshold=args.maf_threshold
     )
-    
+
     try:
         # Run complete analysis
-        results = analyzer.run_complete_analysis(file_paths, method_names)
+        results = analyzer.run_complete_analysis(file_paths, method_names, protein_file_paths)
         
         print("\nANALYSIS SUMMARY")
         print("=" * 50)

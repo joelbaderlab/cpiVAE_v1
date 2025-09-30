@@ -1,0 +1,226 @@
+# This configuration file documents all available options and their valid ranges. Options and ranges were default from optuna tuning.
+
+config:
+  # -----------------------------------------------------------------------------------------
+  # DATA PROCESSING CONFIGURATION
+  # -----------------------------------------------------------------------------------------
+  data:
+    # Log Transformation Settings (applied before normalization)
+    log_transform:
+      platform_a:
+        enabled: false       # Options: true, false - Apply log transformation to platform A data
+        epsilon: 1e-8        # Range: 1e-10 to 1e-6 - Small value added to ensure positive values before log
+      platform_b:
+        enabled: false       # Options: true, false - Apply log transformation to platform B data
+        epsilon: 1e-8        # Range: 1e-10 to 1e-6 - Small value added to ensure positive values before log
+
+    # Missing Value Handling Strategy
+    missing_value_strategy: mean  # Options:
+                                  # - "mean": Impute with feature mean
+                                  # - "median": Impute with feature median
+                                  # - "knn": K-nearest neighbors imputation (5 neighbors)
+                                  # - "drop": Remove samples with any missing values
+
+    # Data Normalization Method (applied after log transformation if enabled)
+    normalization_method: zscore  # Options:
+                                 # - "zscore": StandardScaler (mean=0, std=1)
+                                 # - "minmax": MinMaxScaler (range 0-1)
+                                 # - "robust": RobustScaler (uses median and IQR)
+
+    # Random seed for reproducibility
+    random_seed: 42              # Range: Any integer - Controls train/val/test split randomization
+
+    # Data Split Ratios (must sum to 1.0)
+    test_split: 0.1              # Range: 0.0 to 1.0 - Fraction of data for testing
+    train_split: 0.8             # Range: 0.0 to 1.0 - Fraction of data for training
+    val_split: 0.1               # Range: 0.0 to 1.0 - Fraction of data for validation
+
+    # DataLoader Settings (from datamodule.py)
+    # num_workers: 4             # Range: 0 to 16 - Number of subprocesses for data loading
+    # pin_memory: true           # Options: true, false - Pin memory for faster GPU transfer
+    # persistent_workers: true   # Options: true, false - Keep workers alive between epochs
+
+  # -----------------------------------------------------------------------------------------
+  # HARDWARE CONFIGURATION
+  # -----------------------------------------------------------------------------------------
+  hardware:
+    accelerator: auto            # Options:
+                                # - "auto": Automatically select best available
+                                # - "cpu": Force CPU usage
+                                # - "gpu": CUDA GPU
+                                # - "mps": Apple Silicon GPU
+                                # - "tpu": Tensor Processing Unit
+
+    devices: auto                # Options:
+                                # - "auto": Use all available devices
+                                # - Integer: Specific number of devices (e.g., 1, 2, 4)
+                                # - List: Specific device IDs (e.g., [0, 1])
+
+    precision: 32                # Options:
+                                # - 32: Full precision (FP32)
+                                # - 16: Mixed precision (FP16)
+                                # - "bf16": Brain floating point 16
+                                # - 64: Double precision (FP64)
+
+  # -----------------------------------------------------------------------------------------
+  # LOGGING & CHECKPOINTING CONFIGURATION
+  # -----------------------------------------------------------------------------------------
+  logging:
+    log_every_n_steps: 50        # Frequency of metric logging
+
+    monitor_metric: val_total_loss  # Options:
+                                    # - "val_total_loss": Combined validation loss
+                                    # - "val_recon_a_r2": Platform A reconstruction R²
+                                    # - "val_recon_b_r2": Platform B reconstruction R²
+                                    # - "val_cross_a_r2": A→B cross-reconstruction R²
+                                    # - "val_cross_b_r2": B→A cross-reconstruction R²
+                                    # - "val_cross_a_corr_mean": A→B correlation (mean per feature)
+                                    # - "val_cross_b_corr_mean": B→A correlation (mean per feature)
+
+    monitor_mode: min            # Options:
+                                # - "min": Lower is better (for losses)
+                                # - "max": Higher is better (for R², correlations)
+
+    save_top_k: 3                # Number of best checkpoints to keep
+
+  # -----------------------------------------------------------------------------------------
+  # LOSS FUNCTION WEIGHTS & CONFIGURATION
+  # -----------------------------------------------------------------------------------------
+  loss_weights:
+    alignment_type: mmd          # Options:
+                                # - "mmd": Maximum Mean Discrepancy (non-parametric)
+                                # - "mse": Mean Squared Error (simple L2)
+                                # - "kl_divergence": KL divergence between posteriors
+
+    # Loss Component Weights
+    cross_reconstruction: 1.4    # Weight for cross-platform reconstruction
+    kl_divergence: 0.00014       # KL regularization weight
+    latent_alignment: 1.9        # Weight for latent space alignment
+    reconstruction: 0.9          # Weight for same-platform reconstruction
+
+  # -----------------------------------------------------------------------------------------
+  # MODEL ARCHITECTURE CONFIGURATION
+  # -----------------------------------------------------------------------------------------
+  model:
+    # Activation Function
+    activation: leaky_relu       # Options:
+                                # - "relu": Standard ReLU
+                                # - "leaky_relu": LeakyReLU with slope 0.2
+                                # - "gelu": Gaussian Error Linear Unit
+                                # - "swish": SiLU activation (Sigmoid Linear Unit)
+                                # - "tanh": Hyperbolic tangent
+                                # - "elu": Exponential Linear Unit
+
+    # Regularization
+    batch_norm: true             # Options: true, false - Use batch normalization in layers
+    dropout_rate: 0.15           # Range: 0.0 to 0.5 - Dropout probability for regularization
+
+    # Architecture Design
+    decoder_layers:              # Range: 1-3 layers, each layer size: [64, 128, 256, 512, 1024]
+    - 512                        # Example: [512], [256, 512], [128, 256, 512]
+
+    encoder_layers:              # Range: 1-3 layers, each layer size: [64, 128, 256, 512, 1024]
+    - 1024                       # Example: [1024], [512, 1024], [256, 512, 1024]
+
+    latent_dim: 128              # Options: [16, 32, 64, 128, 256] - Latent space dimensionality
+
+    # Model Type Selection
+    model_type: joint_vae        # Options:
+                                # - "joint_vae": Joint VAE used in the manuscript
+                                # - "joint_vae_plus": Version of Joint VAE with some tricks
+                                # - "JointVAEVampPrior": VAE with Variational Mixture of Posteriors prior
+                                # - "JointIWAE": Importance Weighted Autoencoder variant
+                                # - "JointVQ": Vector Quantized VAE variant
+                                # - "JointMM": Mixture Model VAE variant
+                                # - "res_unet": ResNet-UNet direct imputation (non-VAE)
+                                # - "generative_vae": VAE with autoregressive/diffusion decoder
+
+    use_residual_blocks: true    # Options: true, false - Use ResidualMLP blocks vs standard MLP
+
+    # Model-Specific Parameters (when applicable)
+    # For generative_vae:
+    # decoder_type: "autoregressive"  # Options: "autoregressive", "diffusion"
+
+    # For JointVQ:
+    # num_embeddings: 512         # Range: 128 to 2048 - VQ codebook size
+    # commitment_cost: 0.25       # Range: 0.1 to 1.0 - VQ commitment loss weight
+
+  # -----------------------------------------------------------------------------------------
+  # TRAINING CONFIGURATION
+  # -----------------------------------------------------------------------------------------
+  training:
+    batch_size: 256              # Options: [32, 64, 128, 256, 512] - Samples per batch
+
+    # Data Augmentation
+    data_augmentation:
+      enabled: true              # Options: true, false - Enable Gaussian noise augmentation
+      gaussian_noise_std: 0.4    # Range: 0.001 to 0.5 (log scale) - Noise standard deviation
+
+    # Early Stopping
+    early_stopping_patience: 10  # Range: 5 to 50 - Epochs without improvement before stopping
+
+    # Gradient Clipping
+    gradient_clip_val: 0.65      # Range: 0.5 to 2.0 - Max gradient norm for clipping
+    # gradient_clip_algorithm: "norm"  # Options: "norm", "value"
+
+    # Learning Rate & Optimization
+    learning_rate: 0.0004        # Range: 1e-5 to 1e-2 (log scale) - Initial learning rate
+    max_epochs: 200              # Range: 50 to 1000 - Maximum training epochs
+
+    optimizer: adamw             # Options:
+                                # - "adam": Adam optimizer
+                                # - "adamw": AdamW with weight decay
+                                # - "sgd": Stochastic Gradient Descent
+                                # - "rmsprop": RMSprop optimizer
+
+    # Learning Rate Scheduling
+    scheduler: reduce_on_plateau # Options:
+                                # - "reduce_on_plateau": Reduce LR when metric plateaus
+                                # - "cosine": Cosine annealing
+                                # - "step": Step decay at fixed intervals
+                                # - "exponential": Exponential decay
+                                # - null: No scheduler
+
+    scheduler_factor: 0.5        # Range: 0.1 to 0.9 - LR reduction factor (for reduce_on_plateau)
+    scheduler_patience: 5        # Range: 3 to 20 - Epochs before LR reduction (for reduce_on_plateau)
+
+# ===========================================================================================
+# AUTOMATICALLY DETECTED PARAMETERS
+# ===========================================================================================
+# These parameters are automatically determined from the input data files
+
+input_dim_a: 2168               # Automatically detected from platform A CSV file
+                                # Number of features/metabolites in platform A
+
+input_dim_b: 2731               # Automatically detected from platform B CSV file
+                                # Number of features/metabolites in platform B
+
+# ===========================================================================================
+# ADDITIONAL NOTES
+# ===========================================================================================
+#
+# 1. HYPERPARAMETER TUNING:
+#    - Use scripts/tune.py with Optuna for automated hyperparameter optimization
+#
+# 2. MODEL SELECTION GUIDE:
+#    - joint_vae: Standard dual-encoder VAE for cross-platform imputation
+#    - joint_vae_plus: Version with some common architectural improvements
+#    - JointVAEVampPrior: Different prior modeling, may improve latent representation
+#    - JointIWAE: Tighter variational bound
+#    - res_unet: Direct deterministic mapping, no latent space
+#    - generative_vae: Two decoders designs for complex data distributions
+#
+# 3. LOSS WEIGHT BALANCING:
+#    - Higher reconstruction weights focus on accuracy
+#    - Higher KL weight encourages better latent structure
+#    - Higher alignment weights improve cross-platform consistency
+#
+# 4. COMPUTATIONAL CONSIDERATIONS:
+#    - Larger batch sizes improve stability but require more memory
+#    - More layers/dimensions increase capacity but may overfit
+#    - Mixed precision can speed up training on modern architectures
+#
+# 5. DATA PREPROCESSING:
+#    - Log transformation if not applied beforehand
+#    - Z-score normalization is a must for external cohort reference
+#    - Consider robust scaling for data with outliers

@@ -194,11 +194,16 @@ python scripts/cis_pQTL_analysis.py \
     --truth /Users/sky2333/Downloads/cpiVAE/data/NC_ARIC/pQTL/cis_results_new/aric_visit5_cis.olink_visit5_96_idMatched_removeEmpty.top_hits.tsv \
     --method1 /Users/sky2333/Downloads/cpiVAE/data/NC_ARIC/pQTL/cis_results_new/aric_visit5_cis.olink_visit5_imputed_vae_idMatched.top_hits.tsv \
     --method2 /Users/sky2333/Downloads/cpiVAE/data/NC_ARIC/pQTL/cis_results_new/aric_visit5_cis.olink_visit5_imputed_wnn_idMatched.top_hits.tsv \
-    --method3 /Users/sky2333/Downloads/cpiVAE/data/NC_ARIC/pQTL/cis_results_new/aric_visit5_cis.olink_visit5_imputed_vae_shuffled_idMatched.top_hits.tsv \
-    --method4 /Users/sky2333/Downloads/cpiVAE/data/NC_ARIC/pQTL/cis_results_new/aric_visit5_cis.olink_visit5_imputed_random_idMatched.top_hits.tsv \
+    --method3 /Users/sky2333/Downloads/cpiVAE/data/NC_ARIC/pQTL/cis_results_new/aric_visit5_cis.olink_visit5_imputed_knn_idMatched.top_hits.tsv \
+    --method4 /Users/sky2333/Downloads/cpiVAE/data/NC_ARIC/pQTL/cis_results_new/aric_visit5_cis.olink_visit5_imputed_vae_shuffled_idMatched.top_hits.tsv \
+    --truth_a data/NC_ARIC/olink_visit5_96_withGroups.csv \
+    --imp_a_m1 data/NC_ARIC/olink_visit5_imputed_vae.csv \
+    --imp_a_m2 data/NC_ARIC/olink_visit5_imputed_wnn.csv \
+    --imp_a_m3 data/NC_ARIC/olink_visit5_imputed_knn.csv \
+    --imp_a_m4 data/NC_ARIC/olink_visit5_imputed_vae_shuffled.csv \
     --method1_name "cpiVAE" \
     --method2_name "WNN" \
-    --method3_name "Permuted" \
-    --method4_name "Random" \
+    --method3_name "KNN" \
+    --method4_name "Permuted" \
     --significance_threshold 1e-06 \
     --maf_threshold 0.05
