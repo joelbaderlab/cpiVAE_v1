@@ -63,9 +63,6 @@ markdown_extensions:
       smart_enable: all        # smarter *em*/**strong** parsing
   - pymdownx.caret             # ^superscript^ & ~~subscript~~
   - pymdownx.details           # <details> disclosure blocks
-  - pymdownx.emoji:
-      emoji_index: !!python/name:material.extensions.emoji.twemoji
-      emoji_generator: !!python/name:material.extensions.emoji.to_svg
   - pymdownx.highlight         # code highlighting with extras
   - pymdownx.inlinehilite      # `==inline code with CSS==`
   - pymdownx.keys              # Press ⌘ C to copy

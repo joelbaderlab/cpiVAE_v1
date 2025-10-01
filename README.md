@@ -15,7 +15,7 @@ The cpiVAE learns a shared latent representation across different proteomics pla
 
 ## Full Documentation
 
-For detailed documentation of all scripts and functions, please check out [https://skysky2333.github.io/cpiVAE/](https://skysky2333.github.io/cpiVAE/).
+For detailed documentation of all scripts and functions, please check out [https://joelbaderlab.github.io/cpiVAE_v1/](https://joelbaderlab.github.io/cpiVAE_v1/).
 
 
 
@@ -79,7 +79,7 @@ python scripts/impute.py --input_data your_data.csv \
 - **Features**: Must match those in `feature_names.pkl` (no missing features allowed)
 - Alternatively, you may subset and retrained the model from the provided example dataset to fit your spesific sets of features.
 
-For optimal results, we recommend training and tuning your own model. See [full imputation documentation](https://skysky2333.github.io/cpiVAE/impute) for details.
+For optimal results, we recommend training and tuning your own model. See [full imputation documentation](https://joelbaderlab.github.io/cpiVAE_v1/impute) for details.
 
 ### Complete Analysis Pipeline
 
