@@ -1,20 +1,23 @@
 # cpiVAE: Cross-Platform Proteomics Data Imputation
 
-A PyTorch-based implementation of Joint Variational Autoencoders for cross-platform proteomics data harmonization and imputation, specifically designed for integrating measurements between different proteomic platforms like Olink and SomaScan.
-
 ## Overview
 
-cpiVAE learns a shared latent representation across different proteomics platforms, enabling cross-platform imputation and data harmonization. The model consists of platform-specific encoders and decoders connected through a shared latent space, allowing for bidirectional translation between platforms while preserving biological signals.
+The cpiVAE learns a shared latent representation across different proteomics platforms. The model consists of platform-specific encoders and decoders connected through a shared latent space, allowing for bidirectional translation between platforms while preserving biological signals.
 
 ### Key Features
 
 - **Cross-platform imputation**: Translate measurements between Olink, SomaScan, and other proteomics platforms
-- **Multiple model architectures**: Support for VAE, VampPrior, Vector Quantized VAE, and more
-- **Comprehensive evaluation**: Built-in comparison with KNN and WNN baselines
+- **Multiple model architectures**: Support for VAE, VampPrior, Vector Quantized VAE, and any custom architecture.
+- **Comprehensive evaluation**: Built-in KNN and WNN baselines for comparision.
 - **Feature importance analysis**: Integration with Captum for interpretability
 - **Hyperparameter optimization**: Bayesian optimization with Optuna
 
-Check the webpage for [full documentations](https://skysky2333.github.io/cpiVAE/).
+
+## Full Documentation
+
+For detailed documentation of all scripts and functions, please check out [https://skysky2333.github.io/cpiVAE/](https://skysky2333.github.io/cpiVAE/).
+
+
 
 ## Quick Start
 
@@ -92,13 +95,6 @@ This will:
 - Perform cross-platform imputation
 - Generate comparison reports
 - Generate latent space and feature importance reports
-
-
-## Documentation
-
-For detailed documentation of individual scripts, please check out [https://skysky2333.github.io/cpiVAE/](https://skysky2333.github.io/cpiVAE/).
-
-
 
 
 ## Data Format
