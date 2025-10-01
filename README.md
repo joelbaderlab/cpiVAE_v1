@@ -74,6 +74,7 @@ python scripts/impute.py --input_data your_data.csv \
 - **Olink**: Standard QC pipeline
 - **Both platforms**: Log2 transformed and z-standardized feature-wise
 - **Features**: Must match those in `feature_names.pkl` (no missing features allowed)
+- Alternatively, you may subset and retrained the model from the provided example dataset to fit your spesific sets of features.
 
 For optimal results, we recommend training and tuning your own model. See [full imputation documentation](https://skysky2333.github.io/cpiVAE/impute) for details.
 

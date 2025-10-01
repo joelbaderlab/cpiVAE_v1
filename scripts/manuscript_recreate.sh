@@ -7,8 +7,10 @@ python scripts/train.py --config configs/default.yaml --platform_a data/olink_ov
 python scripts/impute.py --input_data data/olink_overlap_test.csv --source_platform a --target_platform b --experiment_dir outputs_vae/joint_vae_experiment/version_20250807-225313 --output data/somascan_overlap_test_imputed_vae.csv --output_latent data/olink_overlap_test_latent_vae.csv --output_importance data/somascan_overlap_test_importance_vae.csv --importance_method deeplift
 python scripts/impute.py --input_data data/somascan_overlap_test.csv --source_platform b --target_platform a --experiment_dir outputs_vae/joint_vae_experiment/version_20250807-225313 --output data/olink_overlap_test_imputed_vae.csv --output_latent data/somascan_overlap_test_latent_vae.csv --output_importance data/olink_overlap_test_importance_vae.csv --importance_method deeplift
 
+# output confidence(not used)
 python scripts/confidence.py --input_data data/olink_overlap_test.csv --source_platform a --target_platform b --experiment_dir outputs_vae/joint_vae_experiment/version_20250807-225313 --output data/somascan_overlap_test_confidence_vae.csv --n_runs 100  --method delta
 python scripts/confidence.py --input_data data/somascan_overlap_test.csv --source_platform b --target_platform a --experiment_dir outputs_vae/joint_vae_experiment/version_20250807-225313 --output data/olink_overlap_test_confidence_vae.csv --n_runs 100  --method delta
+
 # KNN
 python scripts/run_knn_comparison.py --platform_a data/olink_overlap_train.csv --platform_b data/somascan_overlap_train.csv --output_dir outputs_knn --kernel gaussian --platform_impute data/olink_overlap_test.csv --impute_target b
 python scripts/run_knn_comparison.py --platform_a data/olink_overlap_train.csv --platform_b data/somascan_overlap_train.csv --output_dir outputs_knn --kernel gaussian --platform_impute data/somascan_overlap_test.csv --impute_target a
@@ -76,10 +78,9 @@ python scripts/feature_importance_analysis.py \
     --network_layout spring \
     --threshold_method absolute_importance \
     --ppi_reference data/filtered_both_ppi_network.tsv \
-    --skip_cliques \
-    --threshold_params 0.005477
-    --threshold_params 0.03 \
+    --skip_cliques
 
+# importance network for comparison (not used)
 python scripts/feature_importance_analysis_correlation.py \
     --truth_a data/olink_overlap_test.csv \
     --truth_b data/somascan_overlap_test.csv \
@@ -90,40 +91,7 @@ python scripts/feature_importance_analysis_correlation.py \
     --skip_cliques
 
 
-# TARGET DENSITY RECOMMENDATION (density 0.0366):
-#     Best threshold: --threshold_params 0.005477
-#     Achieved density: 0.0351 (diff: 0.0015)
-#     Network size: 79,301 edges, 2,125 nodes
-    
-
-
-#   Generated 6 recommendations
-#   → For absolute importance thresholding, use: --threshold_method absolute_importance --threshold_params <threshold>
-#     moderate_density: --threshold_params 0.004296
-#     target_edges: --threshold_params 0.011352
-#     elbow_method: --threshold_params 0.001275
-#     edge_saturation: --threshold_params 0.030000
-#     node_plateau: --threshold_params 0.001000
-#     target_density: --threshold_params 0.004296
-
-#   → EDGE SATURATION RECOMMENDATION (AUTOMATIC DEFAULT):
-#     Recommended threshold: --threshold_params 0.030000
-#     Edge saturation point: 176 edges ≤ 117 nodes (ratio: 1.504)
-#     Network density: 0.0259
-
-#   → TARGET DENSITY RECOMMENDATION (density 0.1120):
-#     Best threshold: --threshold_params 0.004296
-#     Achieved density: 0.0771 (diff: 0.0349)
-#     Network size: 174,203 edges, 2,126 nodes
-
-#   → NODE PLATEAU THRESHOLD:
-#     Threshold: --threshold_params 0.001000
-#     Node count plateau reached (~99% of max nodes: 2126)
-
-
-
-
-# confidence analysis
+# confidence analysis (not used)
 python scripts/confidence_analysis.py \
     --truth_a data/olink_overlap_test.csv \
     --truth_b data/somascan_overlap_test.csv \
@@ -138,7 +106,7 @@ python scripts/confidence_analysis.py \
     --correlation pearson
 
 
-# run QC VAE
+# run QC VAE (not used)
 python scripts/qc.py --data_file data/olink_overlap.csv
 python scripts/qc.py --data_file data/somascan_overlap.csv
 

@@ -51,15 +51,8 @@ Get started with cpiVAE in three simple steps:
 | [**Phenotype Association**](phenotype_association.md) | Discovery and targeted phenotype associations |
 | [**Comparison**](comparison.md) | Benchmarking against baselines |
 
-## Architecture
 
-cpiVAE employs a dual-encoder, dual-decoder architecture that learns platform-specific representations while maintaining a shared latent space. This design enables:
-
-- **Bidirectional Imputation**: A→B and B→A cross-platform prediction
-- **Latent Alignment**: Shared biological signal representation
-- **Platform Adaptation**: Handling platform-specific measurement characteristics
-
-## Research Applications
+## Applications
 
 - **Multi-platform Studies**: Harmonize data across different proteomics platforms
 - **Data Integration**: Combine measurements from multiple cohorts or studies  
