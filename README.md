@@ -62,7 +62,7 @@ python scripts/impute.py --input_data data/olink_test.csv \
 ### Quick Imputation with Pre-trained Weights
 
 For immediate testing, you can use our pre-trained model to perform cross-platform imputation:
-- Download the pre-trained weights from [Google Drive](https://drive.google.com/drive/folders/1u5j3JBGjkvZrRHIDL3u1YNTqFM2JoTIO?usp=sharing).
+- Download the pre-trained weights from [Google Drive](https://drive.google.com/drive/folders/1-5rpWkobsJ6LiYyXDjU580DqGFmpLWfe?usp=sharing).
 - Determine the direction imputation. In our case, platform a is Olink and platform b is Somascan
 
 ```bash
