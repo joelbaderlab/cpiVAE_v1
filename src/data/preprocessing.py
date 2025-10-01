@@ -214,7 +214,7 @@ class DataPreprocessor:
                     min_val = data.min().min()
                     if min_val <= 0:
                         # Add small epsilon to ensure all values are positive
-                        shift_value = -min_val + platform_config.get('epsilon', 1e-8)
+                        shift_value = -min_val + float(platform_config.get('epsilon', 1e-8))
                         logger.info(f"  {platform}: Shifting data by {shift_value:.6f} to handle non-positive values")
                     else:
                         shift_value = 0.0

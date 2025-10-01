@@ -33,7 +33,7 @@ pip install -r requirements.txt
 
 1. **Prepare your data**: CSV files with matching sample IDs between platforms
 ```bash
-python scripts/split_data.py --platform_a data/olink.csv --platform_b data/somascan.csv --output_dir data/
+python scripts/split_data.py --platform_a data/olink_overlap.csv --platform_b data/somascan_overlap.csv --output_dir data/
 ```
 
 2. **Hyperparameter tuning** (optional but highly recommended for your own dataset):
@@ -50,13 +50,14 @@ python scripts/train.py --config configs/default.yaml \
     --platform_b data/somascan_overlap_train.csv \
     --output_dir outputs_vae
 ```
+For imputation only, you may choose to change to use the build-in log preoprocessing in the default config file for better results. Doing so may produce some skewed figures in the visulization script, as it expect manual log-preprocessing.
 
 4. **Perform cross-platform imputation**:
 ```bash
-python scripts/impute.py --input_data data/olink_test.csv \
+python scripts/impute.py --input_data data/olink_overlap_test.csv \
     --source_platform a --target_platform b \
     --experiment_dir outputs_vae/joint_vae_experiment/version_X \
-    --output data/somascan_imputed.csv
+    --output data/somascan_overlap_imputed.csv
 ```
 
 ### Quick Imputation with Pre-trained Weights
@@ -72,7 +73,7 @@ python scripts/impute.py --input_data your_data.csv \
     --output imputed_output.csv
 ```
 
-**Important**: Input data must be preprocessed following standard pipelines:
+**Important**: Input data must be preprocessed following the same pipelines as that this weight is trained on:
 - **SomaScan**: Median normalized format
 - **Olink**: Standard QC pipeline
 - **Both platforms**: Log2 transformed and z-standardized feature-wise
